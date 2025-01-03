@@ -1,0 +1,17 @@
+Le programme ne gere qu'un seul envoi
+a la fois de texte, ce qui fait qu'un
+texte depassant le buffer de 1024 octets
+cree un buffer overflow. Je n'ai trouve
+aucune facon fiable de faire en sorte que 
+le serveur envoie plusieurs messages a la
+suite. J'ai pense faire en sorte que le
+client signale au serveur quand il est pret 
+a recevoir des paquets mais malgre cela, le
+serveur continuait d'envoyer les differents
+messages dans le meme buffer, donc a moins
+d'utiliser un sleep(), je n'ai aucune idee
+de comment faire car cela posait aussi des
+problemes de synchronisation entre les deux.
+Donc j'ai opte pour un gros buffer.
+(Ce texte ne contient aucun accent pour qu'il
+soit lisible sur le terminal)

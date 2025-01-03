@@ -6,35 +6,85 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#define TAILLE_BUFFER 256
+#include <pthread.h>
 
-void afficher_message_serveur(char* message){
-    printf("Message recu cote serveur : [%s]\n", message);
+#define TAILLE_BUFFER 1024
+
+void afficher_message_serveur(char* message, int descripteur){
+    printf("Message recu cote serveur du socket %d : [%s]\n", descripteur, message);
+}
+
+long taille_fichier(FILE* fichier){
+    long position_actuelle = ftell(fichier);
+    fseek(fichier, 0, SEEK_END);
+    long taille = ftell(fichier);
+    fseek(fichier, position_actuelle, SEEK_SET);
+    return taille;
+}
+
+void envoyer_extraits_fichier(char* nom_fichier, int debut, int fin, int descripteur){
+    FILE* fichier;
+    char ligne[TAILLE_BUFFER] = {0};
+    char message[TAILLE_BUFFER] = "";
+
+    fichier = fopen(nom_fichier, "r");
+    if(fichier == NULL){
+        strcpy(message, "Impossible d'ouvrir le fichier.");
+    }else{
+        if(debut == 1 && fin == -1){
+            if(taille_fichier(fichier) > TAILLE_BUFFER){
+                strcpy(message, "Fichier trop grand. Buffer overflow.");
+            }else{
+                while(fgets(ligne, sizeof(ligne), fichier) != NULL){
+                    strcat(message, ligne);
+                }
+            }
+        }else{
+            int cpt_ligne = 1;
+            while(fgets(ligne, sizeof(ligne), fichier) != NULL){
+                if(cpt_ligne >= debut && cpt_ligne <= fin){
+                    if(strlen(ligne) + strlen(message) > TAILLE_BUFFER){
+                        strcpy(message, "Fichier trop grand. Buffer overflow.");
+                    }else{
+                        strcat(message, ligne);
+                    }
+                }
+                cpt_ligne++;
+            }
+        }
+    }
+
+    write(descripteur, message, strlen(message));
+    fclose(fichier);
 }
 
 void gerer_commandes(int descripteur){
-    char buffer[TAILLE_BUFFER];
+    char buffer[TAILLE_BUFFER] = {0};
     int obj_recu;
-    long debut, fin;
-    char nom_fichier[TAILLE_BUFFER];
+    unsigned int debut, fin;
+    char nom_fichier[TAILLE_BUFFER] = {0};
 
     obj_recu = read(descripteur, buffer, TAILLE_BUFFER);
 
-    afficher_message_serveur(buffer);
+    buffer[obj_recu] = '\0'; // Pour s'assurer que le message est bien formaté
+    afficher_message_serveur(buffer, descripteur);
 
     // Si l'utilisateur a décidé de quitter le programme alors on ferme l'écouteur
     if(!strcmp(buffer, "exit")){
         // shutdown(mon_descripteur, SHUT_RDWR);
-        printf("Fermeture de l'ecouteur client");
+        printf("Fermeture de l'ecouteur client numero %d.\n", descripteur);
         close(descripteur);
         return;
     }
 
-    if(sscanf(buffer, "lire %s %ld %ld", nom_fichier, &debut, &fin) != 3){
-        char* message_retour = "Commande mal formulee, format : \"lire <nom_fichier> <position_debut> <position_fin>\"";
-        write(descripteur, message_retour, strlen(message_retour));
+    int elt_lus = sscanf(buffer, "lire %s %u %u", nom_fichier, &debut, &fin); // Si un élément de lu alors ça veut dire qu'on a 
+    if(elt_lus == 3){
+        envoyer_extraits_fichier(nom_fichier, debut, fin, descripteur);
+    }else if(elt_lus == 1) {
+        envoyer_extraits_fichier(nom_fichier, 1, -1, descripteur);
     }else{
-        
+        char* message_retour = "Commande inconnue ou mal formatee, utilisez \"help\" pour voir la liste des commandes";
+        write(descripteur, message_retour, strlen(message_retour));
     }
 
     gerer_commandes(descripteur);
@@ -49,9 +99,8 @@ void *gerer_client(void* arg){
     return NULL;
 }
 
-void *creer_serveur(void *arg)
+int main()
 {
-    arg = arg;
     /*
         socket -> création de la prise
             #include sys/socket.h
@@ -131,7 +180,7 @@ void *creer_serveur(void *arg)
         exit(EXIT_FAILURE);
     }
 
-    // attente de connection
+    // attente de connexion
     while(1){
         int mon_descripteur;
         struct sockaddr_in6 mon_adresse_client;

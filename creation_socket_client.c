@@ -6,9 +6,10 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#define TAILLE_BUFFER 256
+#define TAILLE_BUFFER 1024
 
 void afficher_message_client(char* message, int taille_message){
+    // Réutilisation du script fourni
     printf("Reception client : %d [", taille_message);
     for (int i = 0; i < taille_message; i++)
     {
@@ -29,22 +30,22 @@ void ecouter_input(int socket){
         return;
     }else if(!strcmp(commande, "help")){
         printf("Liste des commandes :\n");
+        printf("Pour sortir du programme : \"exit\"\n");
+        printf("Pour lire un fichier complet : \"lire <chemin/nom_fichier.extension> options : <position_debut> <position_fin>\"");
     }else{
         write(socket, commande, strlen(commande)); // On envoie le message
-
-        char mon_buffer[TAILLE_BUFFER];
+        char buffer[TAILLE_BUFFER] = {0};
         int mon_nb_lus;
-        mon_nb_lus = read(socket, mon_buffer, TAILLE_BUFFER);
-
-        afficher_message_client(mon_buffer, mon_nb_lus);
+        mon_nb_lus = read(socket, buffer, TAILLE_BUFFER);
+        buffer[mon_nb_lus] = '\0';
+        afficher_message_client(buffer, mon_nb_lus);
     }
 
     ecouter_input(socket); // On écoute jusqu'à sortie du programme
 }
 
-void *creer_client(void *arg)
+int main()
 {
-    arg = arg;
     /*
         socket -> création de la prise
             #include sys/socket.h
@@ -87,7 +88,7 @@ void *creer_client(void *arg)
 
     if (connect(ma_socket, (struct sockaddr *)&mon_adresse_serveur, sizeof(struct sockaddr_in)))
     {
-        fprintf(stderr, "pb de connection\n");
+        fprintf(stderr, "Serveur non trouve, delais d'attente de connexion depasse.\n");
         close(ma_socket);
         exit(EXIT_FAILURE);
     }
