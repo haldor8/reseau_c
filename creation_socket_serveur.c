@@ -45,7 +45,7 @@ void envoyer_extraits_fichier(char* nom_fichier, int debut, int fin, int descrip
         }else{
             int cpt_ligne = 1;
             while(fgets(ligne, sizeof(ligne), fichier) != NULL){
-                if(cpt_ligne >= debut && cpt_ligne <= fin){
+                if(cpt_ligne >= debut && (cpt_ligne <= fin || fin == -1)){
                     if(strlen(ligne) + strlen(message) > TAILLE_BUFFER){
                         // Pour éviter que le programme plante
                         strcpy(message, "Fichier trop grand. Buffer overflow.");
