@@ -6,9 +6,45 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#define TAILLE_BUFFER 256
+
+void afficher_message_client(char* message, int taille_message){
+    printf("Reception client : %d [", taille_message);
+    for (int i = 0; i < taille_message; i++)
+    {
+        printf("%c", message[i]);
+    }
+    printf("]\n");
+}
+
+void ecouter_input(int socket){
+    // Echange d'information
+    char commande[TAILLE_BUFFER];
+    printf("Veuillez entrer une commande : \n");
+    fgets(commande, TAILLE_BUFFER, stdin);
+    commande[strcspn(commande, "\n")] = '\0'; // On remplace le \n par un \0 pour que le message puisse être bien lu
+
+    if(!strcmp(commande, "exit")){
+        write(socket, "exit", 4);
+        return;
+    }else if(!strcmp(commande, "help")){
+        printf("Liste des commandes :\n");
+    }else{
+        write(socket, commande, strlen(commande)); // On envoie le message
+
+        char mon_buffer[TAILLE_BUFFER];
+        int mon_nb_lus;
+        mon_nb_lus = read(socket, mon_buffer, TAILLE_BUFFER);
+
+        afficher_message_client(mon_buffer, mon_nb_lus);
+    }
+
+    ecouter_input(socket); // On écoute jusqu'à sortie du programme
+}
+
 void *creer_client(void *arg)
 {
-
+    arg = arg;
     /*
         socket -> création de la prise
             #include sys/socket.h
@@ -56,18 +92,8 @@ void *creer_client(void *arg)
         exit(EXIT_FAILURE);
     }
 
-    // Echange d'information
-    write(ma_socket, "Hello", 6);
-    char mon_buffer[256];
-    int mon_nb_lus;
-    int i;
-    mon_nb_lus = read(ma_socket, mon_buffer, 256);
-    printf("%d [", mon_nb_lus);
-    for (i = 0; i < mon_nb_lus; i++)
-    {
-        printf("%c", mon_buffer[i]);
-    }
-    printf("]\n");
+    sleep(1);
+    ecouter_input(ma_socket);
 
     close(ma_socket);
 

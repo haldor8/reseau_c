@@ -6,9 +6,52 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#define TAILLE_BUFFER 256
+
+void afficher_message_serveur(char* message){
+    printf("Message recu cote serveur : [%s]\n", message);
+}
+
+void gerer_commandes(int descripteur){
+    char buffer[TAILLE_BUFFER];
+    int obj_recu;
+    long debut, fin;
+    char nom_fichier[TAILLE_BUFFER];
+
+    obj_recu = read(descripteur, buffer, TAILLE_BUFFER);
+
+    afficher_message_serveur(buffer);
+
+    // Si l'utilisateur a décidé de quitter le programme alors on ferme l'écouteur
+    if(!strcmp(buffer, "exit")){
+        // shutdown(mon_descripteur, SHUT_RDWR);
+        printf("Fermeture de l'ecouteur client");
+        close(descripteur);
+        return;
+    }
+
+    if(sscanf(buffer, "lire %s %ld %ld", nom_fichier, &debut, &fin) != 3){
+        char* message_retour = "Commande mal formulee, format : \"lire <nom_fichier> <position_debut> <position_fin>\"";
+        write(descripteur, message_retour, strlen(message_retour));
+    }else{
+        
+    }
+
+    gerer_commandes(descripteur);
+}
+
+void *gerer_client(void* arg){
+    int descripteur = *(int*) arg;
+    free(arg);
+
+    printf("Client connecte, socket : %d\n", descripteur);
+    gerer_commandes(descripteur); // On gère les commandes jusqu'à ce que le client se déconnecte
+    return NULL;
+}
+
 void *creer_serveur(void *arg)
 {
-
+    arg = arg;
     /*
         socket -> création de la prise
             #include sys/socket.h
@@ -89,42 +132,32 @@ void *creer_serveur(void *arg)
     }
 
     // attente de connection
-    int mon_descripteur;
-    struct sockaddr_in6 mon_adresse_client;
-    int ma_taille_socket_client;
-    mon_descripteur = accept(ma_socket, (struct sockaddr *)&mon_adresse_client, &ma_taille_socket_client);
-    if (mon_descripteur == -1)
-    {
-        fprintf(stderr, "pb de ecoute\n");
-        close(ma_socket);
-        exit(EXIT_FAILURE);
+    while(1){
+        int mon_descripteur;
+        struct sockaddr_in6 mon_adresse_client;
+        int ma_taille_socket_client;
+        mon_descripteur = accept(ma_socket, (struct sockaddr *)&mon_adresse_client, &ma_taille_socket_client);
+        if (mon_descripteur == -1)
+        {
+            fprintf(stderr, "pb de ecoute\n");
+            close(ma_socket);
+            exit(EXIT_FAILURE);
+        }
+        if (mon_adresse_client.sin6_family == AF_INET6)
+        {
+            char mon_texte_adresse_client[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET6, &(mon_adresse_client.sin6_addr), mon_texte_adresse_client, INET6_ADDRSTRLEN);
+            printf("Connexion avec %s %d\n", mon_texte_adresse_client, mon_adresse_client.sin6_port);
+        }
+        else
+        {
+            printf("Connexion avec %s %d\n", inet_ntoa(((struct sockaddr_in *)&mon_adresse_client)->sin_addr), ((struct sockaddr_in *)&mon_adresse_client)->sin_port);
+        }
+        pthread_t ecouteur_client;
+        int* arg = (int*)malloc(sizeof(int));
+        *arg = mon_descripteur;
+        pthread_create(&ecouteur_client, NULL, &gerer_client, (void*)arg);
     }
-    if (mon_adresse_client.sin6_family == AF_INET6)
-    {
-        char mon_texte_adresse_client[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, &(mon_adresse_client.sin6_addr), mon_texte_adresse_client, INET6_ADDRSTRLEN);
-        printf("Connexion avec %s %d\n", mon_texte_adresse_client, mon_adresse_client.sin6_port);
-    }
-    else
-    {
-        printf("Connexion avec %s %d\n", inet_ntoa(((struct sockaddr_in *)&mon_adresse_client)->sin_addr), ((struct sockaddr_in *)&mon_adresse_client)->sin_port);
-    }
-    // Echange d'inforamtion
-    char mon_buffer[256];
-    int mon_nb_lus;
-    int i;
-    mon_nb_lus = read(mon_descripteur, mon_buffer, 256);
-    printf("%d [", mon_nb_lus);
-    for (i = 0; i < mon_nb_lus; i++)
-    {
-        printf("%c", mon_buffer[i]);
-    }
-    printf("]\n");
-
-    write(mon_descripteur, "Au revoir", 10);
-
-    // shutdown(mon_descripteur, SHUT_RDWR);
-    close(mon_descripteur);
 
     close(ma_socket);
 

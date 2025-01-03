@@ -1,8 +1,8 @@
-CC = gcc
+CC = C:/cygwin64/bin/gcc
 CFLAGS = -Wall -Wextra -std=c11 
 
 # Liste des fichiers source, changer le nom des .c pour les compiler séparément
-SRCS = exo3.c
+SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 
 EXEC = programme
