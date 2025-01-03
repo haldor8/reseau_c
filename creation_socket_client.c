@@ -22,12 +22,13 @@ void ecouter_input(int socket){
     // Echange d'information
     char commande[TAILLE_BUFFER];
     printf("Veuillez entrer une commande : \n");
-    fgets(commande, TAILLE_BUFFER, stdin);
+    fgets(commande, TAILLE_BUFFER, stdin); // On lit l'input de l'utilisateur
     commande[strcspn(commande, "\n")] = '\0'; // On remplace le \n par un \0 pour que le message puisse être bien lu
 
+    // On gère certaines commandes manuellement, les exceptions sont gérées par le serveur
     if(!strcmp(commande, "exit")){
         write(socket, "exit", 4);
-        return;
+        return; // Sortie du programme
     }else if(!strcmp(commande, "help")){
         printf("Liste des commandes :\n");
         printf("Pour sortir du programme : \"exit\"\n");
@@ -37,11 +38,11 @@ void ecouter_input(int socket){
         char buffer[TAILLE_BUFFER] = {0};
         int mon_nb_lus;
         mon_nb_lus = read(socket, buffer, TAILLE_BUFFER);
-        buffer[mon_nb_lus] = '\0';
+        buffer[mon_nb_lus] = '\0'; // On reformate pour éviter les erreurs
         afficher_message_client(buffer, mon_nb_lus);
     }
 
-    ecouter_input(socket); // On écoute jusqu'à sortie du programme
+    ecouter_input(socket); // On écoute jusqu'à sortie du programme via exit
 }
 
 int main()

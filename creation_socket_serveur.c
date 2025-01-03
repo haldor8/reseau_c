@@ -15,6 +15,7 @@ void afficher_message_serveur(char* message, int descripteur){
 }
 
 long taille_fichier(FILE* fichier){
+    // Retourne la taille du fichier donné
     long position_actuelle = ftell(fichier);
     fseek(fichier, 0, SEEK_END);
     long taille = ftell(fichier);
@@ -24,16 +25,18 @@ long taille_fichier(FILE* fichier){
 
 void envoyer_extraits_fichier(char* nom_fichier, int debut, int fin, int descripteur){
     FILE* fichier;
-    char ligne[TAILLE_BUFFER] = {0};
-    char message[TAILLE_BUFFER] = "";
+    // On réinitialise manuellement tous les buffers pour éviter les segmentation fault
+    char ligne[TAILLE_BUFFER] = {0}; // La ligne courante du fichier lue
+    char message[TAILLE_BUFFER] = ""; // Le message à envoyer
 
     fichier = fopen(nom_fichier, "r");
     if(fichier == NULL){
         strcpy(message, "Impossible d'ouvrir le fichier.");
     }else{
+        // Si on souhaite prendre le fichier au complet
         if(debut == 1 && fin == -1){
             if(taille_fichier(fichier) > TAILLE_BUFFER){
-                strcpy(message, "Fichier trop grand. Buffer overflow.");
+                strcpy(message, "Fichier trop grand. Buffer overflow."); // Pour éviter que le programme plante
             }else{
                 while(fgets(ligne, sizeof(ligne), fichier) != NULL){
                     strcat(message, ligne);
@@ -44,7 +47,9 @@ void envoyer_extraits_fichier(char* nom_fichier, int debut, int fin, int descrip
             while(fgets(ligne, sizeof(ligne), fichier) != NULL){
                 if(cpt_ligne >= debut && cpt_ligne <= fin){
                     if(strlen(ligne) + strlen(message) > TAILLE_BUFFER){
+                        // Pour éviter que le programme plante
                         strcpy(message, "Fichier trop grand. Buffer overflow.");
+                        break;
                     }else{
                         strcat(message, ligne);
                     }
@@ -54,7 +59,7 @@ void envoyer_extraits_fichier(char* nom_fichier, int debut, int fin, int descrip
         }
     }
 
-    write(descripteur, message, strlen(message));
+    write(descripteur, message, strlen(message)); // On envoie l'ensemble des lignes prises en compte
     fclose(fichier);
 }
 
@@ -71,7 +76,7 @@ void gerer_commandes(int descripteur){
 
     // Si l'utilisateur a décidé de quitter le programme alors on ferme l'écouteur
     if(!strcmp(buffer, "exit")){
-        // shutdown(mon_descripteur, SHUT_RDWR);
+        // Le client a signalé au serveur qu'il sortait du programme, donc on le déconnecte
         printf("Fermeture de l'ecouteur client numero %d.\n", descripteur);
         close(descripteur);
         return;
@@ -79,15 +84,17 @@ void gerer_commandes(int descripteur){
 
     int elt_lus = sscanf(buffer, "lire %s %u %u", nom_fichier, &debut, &fin); // Si un élément de lu alors ça veut dire qu'on a 
     if(elt_lus == 3){
-        envoyer_extraits_fichier(nom_fichier, debut, fin, descripteur);
+        envoyer_extraits_fichier(nom_fichier, debut, fin, descripteur); // Si on a spécifié 3 arguments alors on envoie tous les arguments
+    }else if(elt_lus == 2){
+        envoyer_extraits_fichier(nom_fichier, debut, -1, descripteur); // On envoie que le début et le nom du fichier si 2
     }else if(elt_lus == 1) {
-        envoyer_extraits_fichier(nom_fichier, 1, -1, descripteur);
+        envoyer_extraits_fichier(nom_fichier, 1, -1, descripteur); // On envoie que le nom du fichier si 1 un seul spécifié
     }else{
         char* message_retour = "Commande inconnue ou mal formatee, utilisez \"help\" pour voir la liste des commandes";
         write(descripteur, message_retour, strlen(message_retour));
     }
 
-    gerer_commandes(descripteur);
+    gerer_commandes(descripteur); // On appelle récursivement le programme jusqu'à arrêt via exit
 }
 
 void *gerer_client(void* arg){
@@ -205,7 +212,7 @@ int main()
         pthread_t ecouteur_client;
         int* arg = (int*)malloc(sizeof(int));
         *arg = mon_descripteur;
-        pthread_create(&ecouteur_client, NULL, &gerer_client, (void*)arg);
+        pthread_create(&ecouteur_client, NULL, &gerer_client, (void*)arg); // On lance les écouteurs en thread.
     }
 
     close(ma_socket);
